@@ -72,6 +72,16 @@ jobs:
           ls -l AlarmSpike.ipa
           unzip -l AlarmSpike.ipa | grep -E "Info.plist|catbeep" || true
 
+      - name: Report what is inside the package
+        shell: bash
+        working-directory: spike/alarmkit_test
+        run: |
+          # Written as a notice so it can be read without signing in to GitHub.
+          files=$(unzip -l AlarmSpike.ipa | grep -E "catbeep|Info.plist|embedded|AlarmSpike$" | awk '{print $1" "$4}' | tr '\n' '|')
+          keys=$(plutil -p Payload/AlarmSpike.app/Info.plist | grep -E "NSAlarmKit|MinimumOSVersion|CFBundleIdentifier|NSSupportsLiveActivities" | tr -s ' ' | tr '\n' '|')
+          echo "::notice title=Package contents::${files}"
+          echo "::notice title=Info.plist keys::${keys}"
+
       - name: Save the package for download
         uses: actions/upload-artifact@v4
         with:
