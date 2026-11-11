@@ -102,11 +102,30 @@ final class SpikeModel: ObservableObject {
                     textColor: .white,
                     systemImageName: "repeat"
                 )
-                let alert = AlarmPresentation.Alert(
-                    title: "Cat alarm test",
-                    secondaryButton: snoozeSeconds == nil ? nil : snoozeButton,
-                    secondaryButtonBehavior: snoozeSeconds == nil ? nil : .countdown
-                )
+                let secondary: AlarmButton? = snoozeSeconds == nil ? nil : snoozeButton
+                let behavior: AlarmPresentation.Alert.SecondaryButtonBehavior? =
+                    snoozeSeconds == nil ? nil : .countdown
+                let alert: AlarmPresentation.Alert
+                if #available(iOS 26.1, *) {
+                    // From iOS 26.1 the system provides the Stop button itself.
+                    alert = AlarmPresentation.Alert(
+                        title: "Cat alarm test",
+                        secondaryButton: secondary,
+                        secondaryButtonBehavior: behavior
+                    )
+                } else {
+                    // iOS 26.0 still needs a Stop button described by the app.
+                    alert = AlarmPresentation.Alert(
+                        title: "Cat alarm test",
+                        stopButton: AlarmButton(
+                            text: "Stop",
+                            textColor: .white,
+                            systemImageName: "stop.circle"
+                        ),
+                        secondaryButton: secondary,
+                        secondaryButtonBehavior: behavior
+                    )
+                }
                 let presentation = AlarmPresentation(alert: alert, countdown: nil, paused: nil)
                 let attributes = AlarmAttributes<SpikeMetadata>(
                     presentation: presentation,
