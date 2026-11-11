@@ -1,0 +1,66 @@
+name: Phase 1 test app (unsigned iPhone package)
+
+# Builds the AlarmKit test app on a cloud Mac and saves an UNSIGNED .ipa.
+# AltStore signs it with your own Apple ID when you install it, so no keys or
+# passwords are stored anywhere in this repository.
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - phase-1/alarmkit-test
+    paths:
+      - "spike/**"
+      - ".github/workflows/spike-ipa.yml"
+
+jobs:
+  build:
+    runs-on: macos-26
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@v4
+
+      - name: Show the toolchain
+        run: |
+          xcodebuild -version
+          swift --version
+          xcode-select -p
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate the Xcode project
+        working-directory: spike/alarmkit_test
+        run: xcodegen generate
+
+      - name: Build without signing
+        working-directory: spike/alarmkit_test
+        run: |
+          xcodebuild \
+            -project AlarmSpike.xcodeproj \
+            -scheme AlarmSpike \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            build
+
+      - name: Package the .ipa
+        working-directory: spike/alarmkit_test
+        run: |
+          rm -rf Payload AlarmSpike.ipa
+          mkdir Payload
+          cp -R build/Build/Products/Release-iphoneos/AlarmSpike.app Payload/
+          zip -qr AlarmSpike.ipa Payload
+          ls -l AlarmSpike.ipa
+          unzip -l AlarmSpike.ipa | grep -E "Info.plist|catbeep" || true
+
+      - name: Save the package for download
+        uses: actions/upload-artifact@v4
+        with:
+          name: AlarmSpike-unsigned-ipa
+          path: spike/alarmkit_test/AlarmSpike.ipa
+          retention-days: 14

@@ -11,6 +11,12 @@ build/
 *.ipa
 ios/Pods/
 ios/.symlinks/
+# Generated on the cloud Mac by XcodeGen
+spike/alarmkit_test/*.xcodeproj/
+spike/alarmkit_test/Info.plist
+spike/alarmkit_test/build/
+spike/alarmkit_test/Payload/
+
 # Local-only
 .env
 *.pem

@@ -1,0 +1,33 @@
+# XcodeGen project description for the AlarmKit test app (Phase 1).
+# The cloud Mac turns this into an Xcode project, so no Xcode project file is stored here.
+name: AlarmSpike
+options:
+  bundleIdPrefix: app.catclock
+  deploymentTarget:
+    iOS: "26.0"
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    TARGETED_DEVICE_FAMILY: "1"
+targets:
+  AlarmSpike:
+    type: application
+    platform: iOS
+    sources:
+      - path: Sources
+      - path: Sounds
+        buildPhase: resources
+    info:
+      path: Info.plist
+      properties:
+        CFBundleDisplayName: Alarm Spike
+        NSAlarmKitUsageDescription: "Alarm Spike needs permission to schedule alarms so it can test whether an alarm rings with the phone locked."
+        NSSupportsLiveActivities: true
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.catclock.alarmspike
+        MARKETING_VERSION: "0.1"
+        CURRENT_PROJECT_VERSION: "1"
