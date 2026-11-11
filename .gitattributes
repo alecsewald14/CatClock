@@ -1,0 +1,7 @@
+# Keep line endings stable on Windows so generated files do not show as changed.
+* text=auto eol=lf
+*.png binary
+*.ico binary
+*.jpg binary
+*.wav binary
+*.zip binary
