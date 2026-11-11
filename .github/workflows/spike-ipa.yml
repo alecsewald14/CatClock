@@ -34,6 +34,7 @@ jobs:
         run: xcodegen generate
 
       - name: Build without signing
+        shell: bash
         working-directory: spike/alarmkit_test
         run: |
           xcodebuild \
@@ -46,7 +47,20 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
-            build
+            build 2>&1 | tee build.log
+
+      - name: Report compile errors
+        if: failure()
+        shell: bash
+        working-directory: spike/alarmkit_test
+        run: |
+          # Copy the first compiler errors into the run's annotations, which can be
+          # read without signing in to GitHub.
+          grep -E "error:" build.log | sort -u | head -10 | sed 's/%/%25/g' | while IFS= read -r line; do
+            echo "::error title=xcodebuild::${line}"
+          done
+          tail -n 30 build.log | sed 's/%/%25/g' | tr '\n' '|' > tail.txt
+          echo "::notice title=End of build log::$(cat tail.txt)"
 
       - name: Package the .ipa
         working-directory: spike/alarmkit_test
