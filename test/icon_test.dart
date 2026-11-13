@@ -1,9 +1,12 @@
 import 'dart:io';
+import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:cat_clock/app/cat_icon.dart';
+
+import '../tool/ico.dart';
 
 import 'helpers/pump.dart';
 
@@ -79,14 +82,22 @@ void main() {
     expect(header, [137, 80, 78, 71, 13, 10, 26, 10]);
   });
 
-  // Run once with  CATCLOCK_WRITE_ICONS=1  to (re)make the icon files.
+  // Run once with  CATCLOCK_WRITE_ICONS=1  to (re)make the icon files:
+  // the tray picture, and the Windows icon with all seven sizes.
   testWidgets('writes the icon files when asked to', (tester) async {
     if (Platform.environment['CATCLOCK_WRITE_ICONS'] != '1') return;
     await tester.runAsync(() async {
-      final image = await render(64);
-      final data = (await image.toByteData(format: ui.ImageByteFormat.png))!;
+      Future<Uint8List> png(int size) async {
+        final image = await render(size);
+        return (await image.toByteData(format: ui.ImageByteFormat.png))!.buffer.asUint8List();
+      }
+
       Directory('assets/icons').createSync(recursive: true);
-      File('assets/icons/cat_tray.png').writeAsBytesSync(data.buffer.asUint8List());
+      File('assets/icons/cat_tray.png').writeAsBytesSync(await png(64));
+
+      final sizes = [16, 24, 32, 48, 64, 128, 256];
+      final ico = buildIco({for (final size in sizes) size: await png(size)});
+      File('windows/runner/resources/app_icon.ico').writeAsBytesSync(ico);
     });
   });
 }

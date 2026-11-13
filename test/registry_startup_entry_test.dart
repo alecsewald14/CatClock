@@ -107,6 +107,35 @@ void main() {
     });
   });
 
+  // Talks to the real Windows registry, so it only runs when asked, and only ever touches a
+  // scratch folder of its own, never the real start-up list:
+  //   $env:CATCLOCK_TEST_REGISTRY = '1'; flutter test test/registry_startup_entry_test.dart
+  test('works against the real registry in a scratch folder', () async {
+    if (Platform.environment['CATCLOCK_TEST_REGISTRY'] != '1' || !Platform.isWindows) return;
+    const scratchKey = r'HKCU\Software\CatClockTest';
+    const spaced = r'C:\Program Files\Cat Clock With Spaces\cat_clock.exe';
+    final entry = RegistryStartupEntry(
+      executablePath: spaced,
+      valueName: 'CatClockTest',
+      keyPath: scratchKey,
+    );
+    try {
+      expect(await entry.isEnabled(), isFalse);
+      await entry.setEnabled(true);
+      expect(await entry.isEnabled(), isTrue);
+
+      // The stored command must be the quoted path, then the argument.
+      final query = await Process.run('reg', ['query', scratchKey, '/v', 'CatClockTest']);
+      expect('${query.stdout}', contains('"$spaced" --hidden'));
+
+      await entry.setEnabled(false);
+      expect(await entry.isEnabled(), isFalse);
+      await entry.setEnabled(false); // turning off twice is fine
+    } finally {
+      await Process.run('reg', ['delete', scratchKey, '/f']);
+    }
+  });
+
   test('another entry name and folder can be used', () async {
     final runner = Runner();
     final entry = RegistryStartupEntry(
