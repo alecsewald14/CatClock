@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../alarm/alarm.dart';
-import '../alarm/alarm_service.dart';
+import '../alarm/alarm_engine.dart';
 import '../alarm/sound_catalog.dart';
 import '../clock/time_format.dart';
 import '../platform/startup_entry.dart';
@@ -26,8 +26,9 @@ Future<TimeOfDay?> pickTimeWithMaterial(BuildContext context, TimeOfDay initial)
 /// Opens the alarm settings.
 Future<void> showAlarmSheet(
   BuildContext context, {
-  required AlarmService alarm,
+  required AlarmEngine alarm,
   StartupEntry? startupEntry,
+  String? note,
   PickTime pickTime = pickTimeWithMaterial,
 }) {
   return showModalBottomSheet<void>(
@@ -38,7 +39,7 @@ Future<void> showAlarmSheet(
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
     ),
-    builder: (context) => AlarmSheet(alarm: alarm, startupEntry: startupEntry, pickTime: pickTime),
+    builder: (context) => AlarmSheet(alarm: alarm, startupEntry: startupEntry, note: note, pickTime: pickTime),
   );
 }
 
@@ -49,10 +50,14 @@ class AlarmSheet extends StatefulWidget {
     super.key,
     required this.alarm,
     this.startupEntry,
+    this.note,
     this.pickTime = pickTimeWithMaterial,
   });
 
-  final AlarmService alarm;
+  final AlarmEngine alarm;
+
+  /// A sentence about how the alarm behaves on this device, shown at the bottom.
+  final String? note;
 
   /// Null where starting at sign-in does not apply, which hides the switch.
   final StartupEntry? startupEntry;
@@ -261,6 +266,14 @@ class _AlarmSheetState extends State<AlarmSheet> {
                     'in the tray. The laptop must be awake.',
                     key: Key('windows-note'),
                     style: TextStyle(fontSize: 13, color: AppColors.labelText),
+                  ),
+                ],
+                if (widget.note != null) ...[
+                  const Divider(height: 28),
+                  Text(
+                    widget.note!,
+                    key: const Key('platform-note'),
+                    style: const TextStyle(fontSize: 13, color: AppColors.labelText),
                   ),
                 ],
               ],

@@ -66,5 +66,13 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSAlarmKitUsageDescription</key>
+	<string>Cat Clock uses alarms so it can wake you at the time you choose, even when the phone is locked or on silent.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Cat Clock uses your approximate location, only while the app is open, to show the weather where you are.</string>
+	<key>NSSupportsLiveActivities</key>
+	<true/>
+	<key>UIUserInterfaceStyle</key>
+	<string>Dark</string>
 </dict>
 </plist>

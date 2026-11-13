@@ -2,9 +2,11 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-import '../alarm/alarm_service.dart';
+import '../alarm/alarm_engine.dart';
 import '../clock/time_format.dart';
 import '../platform/desktop_shell.dart';
+import '../platform/ios/ios_alarm_service.dart';
+import '../platform/signature_info.dart';
 import '../platform/startup_entry.dart';
 import '../weather/weather_repository.dart';
 import 'alarm_sheet.dart';
@@ -29,12 +31,14 @@ class LiveScreen extends StatefulWidget {
     required this.clock,
     this.shell,
     this.startupEntry,
+    this.signatureInfo,
+    this.alarmNote,
     this.startHidden = false,
     this.pickTime = pickTimeWithMaterial,
   });
 
   final WeatherRepository weather;
-  final AlarmService alarm;
+  final AlarmEngine alarm;
   final AppSettingsStore settingsStore;
 
   /// What was saved last time, already loaded.
@@ -46,11 +50,17 @@ class LiveScreen extends StatefulWidget {
   /// The device's local time. Replaced in tests.
   final DateTime Function() clock;
 
-  /// The window, tray icon, and taskbar. Null where there are none, as in most tests.
+  /// The window, tray icon, and taskbar. Null where there are none, as on the iPhone.
   final DesktopShell? shell;
 
   /// Starts the app at sign-in. Null hides that switch.
   final StartupEntry? startupEntry;
+
+  /// When the iPhone signature expires. Null where that does not apply.
+  final SignatureInfo? signatureInfo;
+
+  /// A sentence about how the alarm behaves on this device, shown in the alarm settings.
+  final String? alarmNote;
 
   /// Start with the window hidden in the tray, as when Windows starts the app at sign-in.
   final bool startHidden;
@@ -65,6 +75,7 @@ class _LiveScreenState extends State<LiveScreen> with WidgetsBindingObserver {
   late DateTime _now = widget.clock();
   late AppSettings _settings = widget.settings;
   Timer? _tick;
+  DateTime? _signatureExpires;
 
   @override
   void initState() {
@@ -77,6 +88,12 @@ class _LiveScreenState extends State<LiveScreen> with WidgetsBindingObserver {
       onQuitRequested: _onQuitRequested,
       startHidden: widget.startHidden,
     ));
+    final info = widget.signatureInfo;
+    if (info != null) {
+      unawaited(info.expiresAt().then((expires) {
+        if (mounted) setState(() => _signatureExpires = expires);
+      }));
+    }
     _tick = Timer.periodic(const Duration(seconds: 1), (_) {
       setState(() => _now = widget.clock());
     });
@@ -87,6 +104,9 @@ class _LiveScreenState extends State<LiveScreen> with WidgetsBindingObserver {
     switch (state) {
       case AppLifecycleState.resumed:
         unawaited(widget.weather.resume());
+        // On the iPhone the alarm may have rung while the app was closed.
+        final alarm = widget.alarm;
+        if (alarm is IosAlarmService) unawaited(alarm.reconcile());
       case AppLifecycleState.hidden:
       case AppLifecycleState.paused:
       case AppLifecycleState.detached:
@@ -170,6 +190,7 @@ class _LiveScreenState extends State<LiveScreen> with WidgetsBindingObserver {
       context,
       alarm: widget.alarm,
       startupEntry: widget.startupEntry,
+      note: widget.alarmNote,
       pickTime: widget.pickTime,
     );
   }
@@ -180,6 +201,10 @@ class _LiveScreenState extends State<LiveScreen> with WidgetsBindingObserver {
       listenable: Listenable.merge([widget.weather, widget.alarm]),
       builder: (context, _) {
         final alarm = widget.alarm;
+        final notes = <String>[
+          ?widget.weather.problem?.message,
+          ?alarm.problem,
+        ];
         return CatClockScreen(
           now: _now,
           colonOn: _now.second.isEven,
@@ -191,7 +216,8 @@ class _LiveScreenState extends State<LiveScreen> with WidgetsBindingObserver {
           missedAt: alarm.missedAt,
           soundProblem: alarm.soundProblem,
           showAttribution: widget.weather.snapshot != null,
-          footerNote: widget.weather.problem?.message,
+          footerNote: notes.isEmpty ? null : notes.join('  ·  '),
+          signature: signatureMessage(_signatureExpires, _now.toUtc()),
           onAlarmTap: _openSheet,
           onStop: alarm.stop,
           onSnooze: alarm.snooze,

@@ -5,6 +5,7 @@ import '../alarm/alarm_controller.dart';
 import '../cat/walk_cycle.dart';
 import '../clock/time_format.dart';
 import '../weather/weather_models.dart';
+import '../platform/signature_info.dart';
 import '../weather/weather_rules.dart';
 import 'alarm_bar.dart';
 import 'cat_scene.dart';
@@ -35,6 +36,7 @@ class CatClockScreen extends StatelessWidget {
     this.onAttributionTap,
     this.showAttribution = true,
     this.footerNote,
+    this.signature,
   });
 
   /// The device's local time.
@@ -73,6 +75,9 @@ class CatClockScreen extends StatelessWidget {
 
   /// An extra line of small print.
   final String? footerNote;
+
+  /// How long the iPhone signature lasts. Null on Windows.
+  final SignatureMessage? signature;
 
   @override
   Widget build(BuildContext context) {
@@ -133,6 +138,7 @@ class CatClockScreen extends StatelessWidget {
                 showAttribution: showAttribution,
                 updatedText: updated,
                 note: footerNote,
+                signature: signature,
                 onAttributionTap: onAttributionTap,
               ),
               const SizedBox(height: 8),
@@ -152,12 +158,14 @@ class ScreenFooter extends StatelessWidget {
     this.showAttribution = true,
     this.updatedText,
     this.note,
+    this.signature,
     this.onAttributionTap,
   });
 
   final bool showAttribution;
   final String? updatedText;
   final String? note;
+  final SignatureMessage? signature;
   final VoidCallback? onAttributionTap;
 
   @override
@@ -188,6 +196,16 @@ class ScreenFooter extends StatelessWidget {
           ),
         if (updatedText != null) Text(updatedText!, key: const Key('updated'), style: style),
         if (note != null) Text(note!, key: const Key('note'), style: style),
+        if (signature != null)
+          Text(
+            signature!.text,
+            key: const Key('signature'),
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: signature!.warning ? FontWeight.w700 : FontWeight.w400,
+              color: signature!.warning ? const Color(0xFFFF8A80) : AppColors.labelText,
+            ),
+          ),
       ],
     );
   }

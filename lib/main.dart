@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import 'alarm/alarm_engine.dart';
 import 'alarm/alarm_service.dart';
 import 'alarm/alarm_store.dart';
 import 'alarm/audioplayers_sound_player.dart';
@@ -15,6 +16,9 @@ import 'app/app_settings.dart';
 import 'app/live_screen.dart';
 import 'app/theme.dart';
 import 'platform/desktop_shell.dart';
+import 'platform/ios/alarmkit_api.dart';
+import 'platform/ios/ios_alarm_service.dart';
+import 'platform/signature_info.dart';
 import 'platform/startup_entry.dart';
 import 'platform/windows/problem_log.dart';
 import 'platform/windows/registry_startup_entry.dart';
@@ -24,35 +28,52 @@ import 'storage/text_storage.dart';
 import 'weather/weather_repository.dart';
 import 'weather/weather_setup.dart';
 
+/// Said at the bottom of the alarm settings on the iPhone.
+const String iosAlarmNote =
+    'The alarm is set with the iPhone itself, so it rings even when the app is closed, the '
+    'phone is locked, or Silent or a Focus mode is on. The phone\'s volume still sets how '
+    'loud it is. An app installed this way works for 7 days, so renew it with AltStore '
+    'before then, and keep a backup alarm in the Clock app for important mornings.';
+
 Future<void> main(List<String> arguments) async {
   WidgetsFlutterBinding.ensureInitialized();
   final dataDirectory = await getApplicationSupportDirectory();
+  final alarmStore = AlarmStore(FileTextStorage(File('${dataDirectory.path}/alarm.json')));
+  final player = AudioplayersSoundPlayer();
 
-  // Only one copy may run, or an alarm would ring twice.
-  if (Platform.isWindows) {
-    if (SingleInstance.acquire(dataDirectory) == null) {
-      SingleInstance.showTheRunningCopy();
-      exit(0);
+  DesktopShell? shell;
+  StartupEntry? startupEntry;
+  SignatureInfo? signatureInfo;
+  String? alarmNote;
+  final AlarmEngine alarm;
+
+  if (Platform.isIOS) {
+    alarmNote = iosAlarmNote;
+    signatureInfo = MethodChannelSignatureInfo();
+    alarm = await IosAlarmService.load(api: MethodChannelAlarmKit(), store: alarmStore, player: player);
+  } else {
+    // Windows. Only one copy may run, or an alarm would ring twice.
+    if (Platform.isWindows) {
+      if (SingleInstance.acquire(dataDirectory) == null) {
+        SingleInstance.showTheRunningCopy();
+        exit(0);
+      }
+      final problemLog = ProblemLog(File('${dataDirectory.path}/problems.log'));
+      shell = WindowsDesktopShell(log: problemLog.write);
+      startupEntry = RegistryStartupEntry(executablePath: Platform.resolvedExecutable);
     }
+    final windowShell = shell;
+    alarm = await AlarmService.load(
+      store: alarmStore,
+      player: player,
+      ticker: TimerSecondTicker(),
+      nowUtc: () => DateTime.now().toUtc(),
+      offsetAt: systemUtcOffsetAt,
+      onRing: () {
+        unawaited(windowShell?.alertUser());
+      },
+    );
   }
-
-  final problemLog = ProblemLog(File('${dataDirectory.path}/problems.log'));
-  final DesktopShell? shell =
-      Platform.isWindows ? WindowsDesktopShell(log: problemLog.write) : null;
-  final StartupEntry? startupEntry = Platform.isWindows
-      ? RegistryStartupEntry(executablePath: Platform.resolvedExecutable)
-      : null;
-
-  final alarm = await AlarmService.load(
-    store: AlarmStore(FileTextStorage(File('${dataDirectory.path}/alarm.json'))),
-    player: AudioplayersSoundPlayer(),
-    ticker: TimerSecondTicker(),
-    nowUtc: () => DateTime.now().toUtc(),
-    offsetAt: systemUtcOffsetAt,
-    onRing: () {
-      unawaited(shell?.alertUser());
-    },
-  );
 
   final settingsStore = AppSettingsStore(
     FileTextStorage(File('${dataDirectory.path}/settings.json')),
@@ -65,6 +86,8 @@ Future<void> main(List<String> arguments) async {
     settings: await settingsStore.load(),
     shell: shell,
     startupEntry: startupEntry,
+    signatureInfo: signatureInfo,
+    alarmNote: alarmNote,
     startHidden: arguments.contains('--hidden'),
   ));
 }
@@ -82,6 +105,8 @@ class CatClockApp extends StatelessWidget {
     required this.settings,
     this.shell,
     this.startupEntry,
+    this.signatureInfo,
+    this.alarmNote,
     this.startHidden = false,
     this.openLink = _openInBrowser,
     this.clock = DateTime.now,
@@ -91,17 +116,23 @@ class CatClockApp extends StatelessWidget {
   /// Keeps the weather up to date. Replaced by a fake one in tests.
   final WeatherRepository weather;
 
-  /// Runs the alarm: the clock check, the sound, and the saved settings.
-  final AlarmService alarm;
+  /// Runs the alarm. On Windows the app rings it; on the iPhone the system does.
+  final AlarmEngine alarm;
 
   final AppSettingsStore settingsStore;
   final AppSettings settings;
 
-  /// The window, tray icon, and taskbar. Null in tests and on systems without them.
+  /// The window, tray icon, and taskbar. Null in tests and on the iPhone.
   final DesktopShell? shell;
 
   /// Starts the app at sign-in. Null hides that switch.
   final StartupEntry? startupEntry;
+
+  /// When the iPhone signature expires. Null on Windows.
+  final SignatureInfo? signatureInfo;
+
+  /// A sentence about how the alarm behaves on this device.
+  final String? alarmNote;
 
   final bool startHidden;
 
@@ -127,6 +158,8 @@ class CatClockApp extends StatelessWidget {
         settings: settings,
         shell: shell,
         startupEntry: startupEntry,
+        signatureInfo: signatureInfo,
+        alarmNote: alarmNote,
         startHidden: startHidden,
         openLink: openLink,
         clock: clock,

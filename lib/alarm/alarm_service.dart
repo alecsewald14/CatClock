@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 
 import 'alarm.dart';
 import 'alarm_controller.dart';
+import 'alarm_engine.dart';
 import 'alarm_store.dart';
 import 'next_fire_time.dart';
 import 'second_ticker.dart';
@@ -15,7 +16,7 @@ import 'sound_player.dart';
 ///
 /// The rules of when the alarm rings, snoozes, and is missed live in [AlarmController];
 /// this class connects them to the clock, the speakers, and the saved file.
-class AlarmService extends ChangeNotifier {
+class AlarmService extends ChangeNotifier implements AlarmEngine {
   AlarmService({
     required this.controller,
     required this._store,
@@ -68,15 +69,24 @@ class AlarmService extends ChangeNotifier {
   Duration? _lastOffset;
 
   /// True if the alarm sound could not be played. The alarm still shows as ringing.
+  @override
   bool get soundProblem => _soundProblem;
 
+  @override
+  String? get problem => _soundProblem ? 'The alarm sound could not be played.' : null;
+
+  @override
   Alarm get alarm => controller.alarm;
+  @override
   AlarmState get state => controller.state;
   DateTime? get fireAt => controller.fireAt;
+  @override
   DateTime? get snoozeUntil => controller.snoozeUntil;
+  @override
   DateTime? get missedAt => controller.missedAt;
 
   /// Starts checking the clock. Call once.
+  @override
   void start() {
     if (_started || _disposed) return;
     _started = true;
@@ -90,6 +100,7 @@ class AlarmService extends ChangeNotifier {
   // ---- Commands from the person ----
 
   /// Turns the alarm on or off.
+  @override
   void setEnabled(bool enabled) {
     if (enabled) {
       controller.arm();
@@ -99,14 +110,19 @@ class AlarmService extends ChangeNotifier {
   }
 
   /// Applies new settings (time, sound, volume, repeat).
+  @override
   void update(Alarm alarm) => controller.updateAlarm(alarm);
 
+  @override
   void stop() => controller.stop();
+  @override
   void snooze() => controller.snooze();
+  @override
   void dismissMissed() => controller.dismissMissed();
 
   /// Plays a short sample of the current sound at the current volume. Does nothing while
   /// the alarm is ringing, so the two never talk over each other.
+  @override
   Future<void> preview({AlarmSound? sound, int? level}) async {
     if (controller.state == AlarmState.ringing) return;
     try {
