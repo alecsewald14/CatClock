@@ -26,9 +26,11 @@
    iPhone nearby. The app shows how many days are left. If a renewal is missed, the app
    stops opening, and **I do not yet know whether an alarm already set would still
    ring** (concern C6).
-3. **The riskiest assumption is tested first.** I have not confirmed that AlarmKit works
-   in an app signed with a free Apple ID. The first step of Build is a tiny test app on
-   your phone. If it fails, the fallback is the web-app design (section 3.10).
+3. **The riskiest assumption was tested first, and it held.** On 2026-11-12, a test app
+   signed with a free Apple ID rang on an iPhone 14 Plus (iOS 26.7.2) with the phone
+   locked, the app closed, Silent on, and a Focus mode on, and its Snooze button worked
+   (see `spike-alarmkit.md`). Volume levels, daily repeat, and a lapsed signature were
+   **not tested** and remain unknown.
 4. **Weather** comes from Open-Meteo, a free service with no account or key: current
    conditions plus the next 6 hours, with the credit link its licence requires.
 5. **The Windows alarm** rings from a clock check that runs every second, so it still
@@ -386,7 +388,7 @@ to build Windows apps).
 | # | Concern | Why it matters | What I recommend |
 |---|---|---|---|
 | C1 | **Decided: Option B, native iPhone app.** Costs a signature renewal every 7 days. | Your choice on 2026-11-11. | Recorded. Fallback is section 3.10. |
-| C2 | **AlarmKit in a free-signed app is unconfirmed.** Free accounts restrict some app capabilities; I could not find a source on AlarmKit specifically. | The whole iPhone alarm depends on it. | First Build step is a tiny AlarmKit test app on your phone. If it fails, stop and choose between the web fallback and a paid account. |
+| C2 | **Resolved for the main case (2026-11-12).** AlarmKit works in a free-signed app on an iPhone 14 Plus (iOS 26.7.2): locked, closed, Silent, Focus, and Snooze all passed. **Not tested:** the five-level volume idea, daily repeat across days, and a lapsed signature. | These three could still force design changes. | Check them in the real app in Phase 7 and 8. See `spike-alarmkit.md`. |
 | C3 | **Windows must be awake and the app running.** | Otherwise no alarm. | **Decided: added** (3.8), off by default. Sleep-waking stays for later. |
 | C4 | **One-time alarm.** The intent default has no repeat, so you must turn it on every night. | Easy to forget and oversleep. | **Decided: added** (3.6), as a switch in the alarm sheet. |
 | C5 | **Windows battery use.** A constantly walking cat. | Battery on a laptop. | 24 frames per second cap, pause when minimized. On iPhone the system rings the alarm, so the animation matters only while the app is open. |
