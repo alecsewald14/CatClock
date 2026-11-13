@@ -21,7 +21,13 @@ CatClockScreen screen({
   WeatherFreshness freshness = WeatherFreshness.fresh,
   Alarm alarm = const Alarm(hour: 6, minute: 30, enabled: true, repeatDaily: true),
   AlarmState state = AlarmState.armed,
+  DateTime? snoozeUntil,
+  DateTime? missedAt,
+  bool soundProblem = false,
   VoidCallback? onAlarmTap,
+  VoidCallback? onStop,
+  VoidCallback? onSnooze,
+  VoidCallback? onDismissMissed,
   VoidCallback? onAttributionTap,
   bool showAttribution = true,
   String? note,
@@ -33,10 +39,16 @@ CatClockScreen screen({
     freshness: freshness,
     alarm: alarm,
     alarmState: state,
+    snoozeUntil: snoozeUntil,
+    missedAt: missedAt,
+    soundProblem: soundProblem,
     animateCat: false,
     showAttribution: showAttribution,
     footerNote: note,
     onAlarmTap: onAlarmTap,
+    onStop: onStop,
+    onSnooze: onSnooze,
+    onDismissMissed: onDismissMissed,
     onAttributionTap: onAttributionTap,
   );
 }
@@ -165,16 +177,93 @@ void main() {
       expect(find.text('OFF'), findsOneWidget);
     });
 
-    testWidgets('says when the alarm is ringing, snoozed, or missed', (tester) async {
-      for (final entry in {
-        AlarmState.ringing: 'Ringing',
-        AlarmState.snoozed: 'Snoozed',
-        AlarmState.missed: 'Missed',
-      }.entries) {
-        await pumpAtSize(tester, phonePortrait, screen(state: entry.key));
-        final details = tester.widget<Text>(find.byKey(const Key('alarm-details'))).data!;
-        expect(details, startsWith('${entry.value}  ·  '), reason: '${entry.key}');
+    testWidgets('says when a snoozed alarm will ring again, and offers Stop', (tester) async {
+      var stops = 0;
+      await pumpAtSize(
+        tester,
+        phonePortrait,
+        screen(
+          state: AlarmState.snoozed,
+          snoozeUntil: DateTime(2026, 11, 12, 6, 39),
+          onStop: () => stops++,
+        ),
+      );
+      expect(
+        tester.widget<Text>(find.byKey(const Key('alarm-details'))).data,
+        startsWith('Snoozed until 6:39 AM  ·  '),
+      );
+      expect(find.text('ON'), findsNothing, reason: 'Stop takes the place of the pill');
+      await tester.tap(find.byKey(const Key('bar-stop')));
+      expect(stops, 1);
+    });
+
+    testWidgets('says when a missed alarm was due, and offers Dismiss', (tester) async {
+      var dismissed = 0;
+      await pumpAtSize(
+        tester,
+        phonePortrait,
+        screen(
+          state: AlarmState.missed,
+          missedAt: DateTime(2026, 11, 12, 6, 30),
+          onDismissMissed: () => dismissed++,
+        ),
+      );
+      expect(
+        tester.widget<Text>(find.byKey(const Key('alarm-details'))).data,
+        startsWith('Missed 6:30 AM  ·  '),
+      );
+      await tester.tap(find.byKey(const Key('bar-dismiss')));
+      expect(dismissed, 1);
+    });
+
+    testWidgets('a snoozed or missed alarm without handlers shows the pill instead', (tester) async {
+      await pumpAtSize(tester, phonePortrait, screen(state: AlarmState.snoozed));
+      expect(find.byKey(const Key('bar-stop')), findsNothing);
+      expect(find.text('ON'), findsOneWidget);
+    });
+
+    testWidgets('while ringing, the Stop and Snooze buttons replace the strip', (tester) async {
+      var stops = 0;
+      var snoozes = 0;
+      await pumpAtSize(
+        tester,
+        phonePortrait,
+        screen(state: AlarmState.ringing, onStop: () => stops++, onSnooze: () => snoozes++),
+      );
+      expect(find.byKey(const Key('alarm-bar')), findsNothing);
+      expect(find.byKey(const Key('ringing-panel')), findsOneWidget);
+      expect(find.text('Alarm  6:30 AM'), findsOneWidget);
+      expect(find.text('Snooze 9 min'), findsOneWidget);
+      await tester.tap(find.byKey(const Key('stop-button')));
+      await tester.tap(find.byKey(const Key('snooze-button')));
+      expect((stops, snoozes), (1, 1));
+    });
+
+    testWidgets('the ringing buttons are big enough to hit half asleep', (tester) async {
+      await pumpAtSize(tester, phonePortrait, screen(state: AlarmState.ringing));
+      expect(rectOf(tester, 'stop-button').height, greaterThanOrEqualTo(56));
+      expect(rectOf(tester, 'snooze-button').height, greaterThanOrEqualTo(56));
+      expect(rectOf(tester, 'stop-button').width, greaterThanOrEqualTo(120));
+    });
+
+    testWidgets('the ringing panel fits on every size, even with large text', (tester) async {
+      for (final entry in sizes.entries) {
+        await pumpAtSize(tester, entry.value, screen(state: AlarmState.ringing, soundProblem: true), textScale: 2);
+        final window = Offset.zero & entry.value;
+        final rect = rectOf(tester, 'ringing-panel');
+        expect(window.inflate(0.5).contains(rect.topLeft), isTrue, reason: '${entry.key} top left');
+        expect(window.inflate(0.5).contains(rect.bottomRight), isTrue, reason: '${entry.key} bottom right');
       }
+    });
+
+    testWidgets('shows why the alarm is silent when the sound cannot play', (tester) async {
+      await pumpAtSize(tester, phonePortrait, screen(state: AlarmState.ringing, soundProblem: true));
+      expect(find.text('The alarm sound could not be played.'), findsOneWidget);
+    });
+
+    testWidgets('does not mention the sound problem otherwise', (tester) async {
+      await pumpAtSize(tester, phonePortrait, screen(state: AlarmState.ringing));
+      expect(find.byKey(const Key('sound-problem')), findsNothing);
     });
 
     testWidgets('tapping it opens the alarm settings', (tester) async {

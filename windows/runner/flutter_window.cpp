@@ -65,6 +65,14 @@ FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
     case WM_FONTCHANGE:
       flutter_controller_->engine()->ReloadSystemFonts();
       break;
+    case WM_CLOSE:
+      // The title-bar close button is handled on the Dart side (it hides the window to the
+      // tray). A close request that arrives here without that, for example "Close window"
+      // on the taskbar thumbnail, hides the window too instead of ending the app, so an
+      // alarm keeps working. The app quits from the tray menu, which ends the process
+      // itself and does not rely on this message.
+      ShowWindow(hwnd, SW_HIDE);
+      return 0;
   }
 
   return Win32Window::MessageHandler(hwnd, message, wparam, lparam);

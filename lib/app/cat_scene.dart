@@ -21,6 +21,7 @@ class CatScene extends StatelessWidget {
     required this.localNow,
     this.animate = true,
     this.pose,
+    this.ringing = false,
   });
 
   final int hour24;
@@ -31,6 +32,9 @@ class CatScene extends StatelessWidget {
   final DateTime localNow;
   final bool animate;
   final ValueNotifier<CatPose>? pose;
+
+  /// True while the alarm rings, so the digits pulse.
+  final bool ringing;
 
   static const Size size = Size(catSceneWidth, catSceneHeight);
 
@@ -53,6 +57,7 @@ class CatScene extends StatelessWidget {
               weather: weather,
               freshness: freshness,
               localNow: localNow,
+              ringing: ringing,
             ),
           ),
         ],

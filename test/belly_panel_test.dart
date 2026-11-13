@@ -103,20 +103,22 @@ void main() {
       expect(tester.widget<Text>(find.byKey(const Key('now-temp'))).data, '54°');
     });
 
+    double weatherOpacity(WidgetTester tester) {
+      final opacity = find.ancestor(
+        of: find.byKey(const Key('weather-panel')),
+        matching: find.byType(Opacity),
+      );
+      return tester.widget<Opacity>(opacity.first).opacity;
+    }
+
     testWidgets('fresh weather is drawn at full strength', (tester) async {
       await pumpAtSize(tester, size, panel());
-      expect(tester.widget<Opacity>(find.descendant(
-        of: find.byKey(const Key('belly-panel')),
-        matching: find.byType(Opacity),
-      ).first).opacity, 1);
+      expect(weatherOpacity(tester), 1);
     });
 
     testWidgets('stale weather is dimmed', (tester) async {
       await pumpAtSize(tester, size, panel(freshness: WeatherFreshness.stale));
-      expect(tester.widget<Opacity>(find.descendant(
-        of: find.byKey(const Key('belly-panel')),
-        matching: find.byType(Opacity),
-      ).first).opacity, 0.5);
+      expect(weatherOpacity(tester), 0.5);
     });
 
     testWidgets('unavailable weather shows dashes and still labels the hours', (tester) async {

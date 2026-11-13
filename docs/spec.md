@@ -272,9 +272,23 @@ Interfaces that hide platform differences (each has a fake for tests):
 ### 3.8 Windows app details
 
 - Closing the window hides it to the **tray**; the tray menu has Show and Quit. Quit
-  while an alarm is on asks "Quitting will cancel your alarm" first.
+  while an alarm is on asks "Quitting will cancel your alarm" first. The first time the
+  window is closed, a one-time notice explains that the app keeps running in the tray.
+- **Built and tested in Phase 5:** closing by the title-bar X, by Alt+F4, or by the taskbar
+  thumbnail's "Close window" all hide the window and keep the app running. If the tray
+  icon cannot be made, closing quits instead, so the app is never left running unseen.
+- **Only one copy runs.** Starting a second copy brings the first one's window forward
+  and ends the second, so an alarm can never ring twice.
 - When the alarm rings while hidden, the window is restored, brought to the front, and
-  flashes on the taskbar.
+  flashes on the taskbar. This was checked with a real alarm on this laptop.
+- The window opens at 860 by 640 points, small enough for a 1080-pixel-high screen with
+  Windows set to 150% scaling.
+- **Saved files** are in the user's AppData Roaming folder, under `app.catclock\cat_clock`:
+  `alarm.json` (the alarm), `settings.json` (small things like "the tray notice was
+  seen"), `weather_cache.json`, `problems.log` (a short log of things that went wrong,
+  never holding location or alarm details), and `instance.lock`.
+- Choosing a time in the alarm sheet turns the alarm on, since picking a time means you
+  want it.
 - **Installer:** a per-user Windows installer (no administrator rights) that adds a
   Start-menu shortcut with the cat icon. It will be **unsigned**, so Windows SmartScreen
   will show a warning the first time; "More info", then "Run anyway" gets past it.

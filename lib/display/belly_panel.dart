@@ -19,6 +19,7 @@ class BellyPanel extends StatelessWidget {
     required this.weather,
     required this.freshness,
     required this.localNow,
+    this.ringing = false,
   });
 
   final int hour24;
@@ -28,11 +29,17 @@ class BellyPanel extends StatelessWidget {
   final WeatherFreshness freshness;
   final DateTime localNow;
 
+  /// While the alarm rings, the digits pulse once a second (unless the device's "reduce
+  /// motion" setting is on, when they stay steady).
+  final bool ringing;
+
   static const double width = 960;
   static const double height = 420;
 
   @override
   Widget build(BuildContext context) {
+    final reduceMotion = MediaQuery.maybeDisableAnimationsOf(context) ?? false;
+    final dimTime = ringing && !colonOn && !reduceMotion;
     // Phone text-size settings must not push the weather text out of its cells.
     return MediaQuery(
       data: MediaQuery.of(context).copyWith(textScaler: TextScaler.noScaling),
@@ -51,7 +58,11 @@ class BellyPanel extends StatelessWidget {
               Positioned(
                 left: 20,
                 top: (height - TimeDisplay.digitsHeight) / 2,
-                child: TimeDisplay(hour24: hour24, minute: minute, colonOn: colonOn),
+                child: Opacity(
+                  key: const Key('time-pulse'),
+                  opacity: dimTime ? 0.3 : 1,
+                  child: TimeDisplay(hour24: hour24, minute: minute, colonOn: colonOn),
+                ),
               ),
               Positioned(
                 left: 588,

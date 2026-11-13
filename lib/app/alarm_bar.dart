@@ -2,11 +2,14 @@ import 'package:flutter/material.dart';
 
 import '../alarm/alarm.dart';
 import '../alarm/alarm_controller.dart';
+import '../alarm/sound_catalog.dart';
 import '../clock/time_format.dart';
 import 'theme.dart';
 
-/// "soft_chime" becomes "Soft Chime".
+/// A sound's name for the screen: "Soft Chime". A sound this version does not know is
+/// shown with its id tidied up, so "some_sound" becomes "Some Sound".
 String soundDisplayName(String soundId) {
+  if (isKnownSound(soundId)) return soundById(soundId).name;
   return soundId
       .split('_')
       .where((word) => word.isNotEmpty)
@@ -14,28 +17,47 @@ String soundDisplayName(String soundId) {
       .join(' ');
 }
 
+String _clock(DateTime time) => formatUpdated(time.hour, time.minute);
+
 /// The strip under the cat that shows the alarm: its time, whether it is on, and its
 /// sound and volume. Tapping it opens the alarm settings.
+///
+/// While the alarm is snoozed it offers Stop, and after a missed alarm it offers Dismiss.
 class AlarmBar extends StatelessWidget {
   const AlarmBar({
     super.key,
     required this.alarm,
     required this.state,
+    this.snoozeUntil,
+    this.missedAt,
     this.onTap,
+    this.onStop,
+    this.onDismissMissed,
   });
 
   final Alarm alarm;
   final AlarmState state;
+
+  /// When a snoozed alarm rings again, in local time.
+  final DateTime? snoozeUntil;
+
+  /// When the missed alarm was due, in local time.
+  final DateTime? missedAt;
+
   final VoidCallback? onTap;
+  final VoidCallback? onStop;
+  final VoidCallback? onDismissMissed;
 
   @override
   Widget build(BuildContext context) {
     final time = to12Hour(alarm.hour);
     final timeText = '${formatClockDigits(alarm.hour, alarm.minute)} ${time.isPm ? 'PM' : 'AM'}';
+    final until = snoozeUntil;
+    final missed = missedAt;
     final status = switch (state) {
       AlarmState.ringing => 'Ringing',
-      AlarmState.snoozed => 'Snoozed',
-      AlarmState.missed => 'Missed',
+      AlarmState.snoozed => until != null ? 'Snoozed until ${_clock(until)}' : 'Snoozed',
+      AlarmState.missed => missed != null ? 'Missed ${_clock(missed)}' : 'Missed',
       _ => null,
     };
     final details = <String>[
@@ -44,6 +66,21 @@ class AlarmBar extends StatelessWidget {
       'Volume ${alarm.volumeLevel} of ${Alarm.maxVolumeLevel}',
       if (alarm.repeatDaily) 'Every day',
     ].join('  ·  ');
+
+    Widget trailing = _OnOffPill(on: alarm.enabled);
+    if (state == AlarmState.snoozed && onStop != null) {
+      trailing = TextButton(
+        key: const Key('bar-stop'),
+        onPressed: onStop,
+        child: const Text('Stop', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+      );
+    } else if (state == AlarmState.missed && onDismissMissed != null) {
+      trailing = TextButton(
+        key: const Key('bar-dismiss'),
+        onPressed: onDismissMissed,
+        child: const Text('Dismiss', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+      );
+    }
 
     return Semantics(
       button: true,
@@ -82,7 +119,7 @@ class AlarmBar extends StatelessWidget {
                         ),
                       ),
                     ),
-                    _OnOffPill(on: alarm.enabled),
+                    trailing,
                   ],
                 ),
                 const SizedBox(height: 6),
