@@ -1,3 +1,6 @@
+// ignore_for_file: avoid_print
+// (This is a command-line tool, so printing to the screen is its whole job.)
+//
 // A developer check of the real weather connection, using fixed sample coordinates
 // (central Berlin) so no one's real location is involved.
 //
