@@ -1,30 +1,7 @@
 import 'dart:convert';
 
+import '../storage/text_storage.dart';
 import 'alarm.dart';
-
-/// Somewhere to keep the saved alarm as text. The real app uses a file on the device;
-/// tests use [MemoryAlarmStorage].
-abstract class AlarmStorage {
-  /// The saved text, or null if nothing has been saved yet.
-  Future<String?> read();
-
-  Future<void> write(String contents);
-}
-
-/// Keeps the saved text in memory. Used in tests, and as a fallback.
-class MemoryAlarmStorage implements AlarmStorage {
-  MemoryAlarmStorage([this.contents]);
-
-  String? contents;
-
-  @override
-  Future<String?> read() async => contents;
-
-  @override
-  Future<void> write(String contents) async {
-    this.contents = contents;
-  }
-}
 
 /// Loads and saves the alarm.
 ///
@@ -36,7 +13,7 @@ class AlarmStore {
   /// Bumped if the saved format ever changes.
   static const int formatVersion = 1;
 
-  final AlarmStorage _storage;
+  final TextStorage _storage;
 
   /// Why the last [load] used the default alarm, or null if it went fine.
   String? lastLoadProblem;

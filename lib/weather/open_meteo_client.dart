@@ -1,6 +1,106 @@
+import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:http/http.dart' as http;
+
 import 'units.dart';
 import 'weather_models.dart';
+import 'weather_problem.dart';
 import 'weather_rules.dart';
+
+/// Something that can fetch the weather for a place. Tests use a fake one.
+abstract interface class WeatherFetcher {
+  /// Throws a [WeatherFetchException] if the weather cannot be fetched.
+  Future<WeatherSnapshot> fetch({
+    required double latitude,
+    required double longitude,
+    required TemperatureUnit unit,
+    required DateTime nowUtc,
+  });
+}
+
+/// The weather could not be fetched. [problem] says why in terms the app understands;
+/// [detail] is for developers and is never shown to the person.
+class WeatherFetchException implements Exception {
+  const WeatherFetchException(this.problem, this.detail);
+
+  final WeatherProblem problem;
+  final String detail;
+
+  @override
+  String toString() => 'WeatherFetchException(${problem.name}): $detail';
+}
+
+/// Fetches weather from Open-Meteo over the internet.
+///
+/// Only the rounded position and the settings in [buildForecastUri] are sent: no name,
+/// no account, no device identifier.
+class OpenMeteoClient implements WeatherFetcher {
+  OpenMeteoClient({http.Client? client, this.timeout = const Duration(seconds: 15)})
+      : _client = client ?? http.Client();
+
+  final http.Client _client;
+
+  /// How long to wait for an answer before giving up.
+  final Duration timeout;
+
+  @override
+  Future<WeatherSnapshot> fetch({
+    required double latitude,
+    required double longitude,
+    required TemperatureUnit unit,
+    required DateTime nowUtc,
+  }) async {
+    final roundedLatitude = roundCoordinate(latitude);
+    final roundedLongitude = roundCoordinate(longitude);
+    final uri = buildForecastUri(
+      latitude: roundedLatitude,
+      longitude: roundedLongitude,
+      unit: unit,
+    );
+
+    final http.Response response;
+    try {
+      response = await _client.get(uri).timeout(timeout);
+    } on TimeoutException {
+      throw const WeatherFetchException(WeatherProblem.network, 'The weather service took too long');
+    } on IOException catch (error) {
+      throw WeatherFetchException(WeatherProblem.network, 'Connection problem: $error');
+    } on http.ClientException catch (error) {
+      throw WeatherFetchException(WeatherProblem.network, 'Connection problem: $error');
+    }
+
+    if (response.statusCode == 429 || response.statusCode >= 500) {
+      throw WeatherFetchException(
+        WeatherProblem.network,
+        'The weather service is busy or down (${response.statusCode})',
+      );
+    }
+    if (response.statusCode != 200) {
+      throw WeatherFetchException(
+        WeatherProblem.badResponse,
+        'The weather service refused the request (${response.statusCode})',
+      );
+    }
+
+    try {
+      final decoded = jsonDecode(response.body);
+      if (decoded is! Map) {
+        throw const FormatException('The answer is not a JSON object');
+      }
+      return parseForecast(
+        Map<String, dynamic>.from(decoded),
+        fetchedAtUtc: nowUtc,
+        latitude: roundedLatitude,
+        longitude: roundedLongitude,
+        unit: unit,
+      );
+    } catch (error) {
+      throw WeatherFetchException(WeatherProblem.badResponse, 'Could not read the answer: $error');
+    }
+  }
+}
 
 /// How many hourly entries to ask for: the current hour plus the next six.
 const int forecastHoursRequested = 7;

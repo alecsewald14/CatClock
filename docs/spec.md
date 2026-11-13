@@ -170,7 +170,15 @@ images under `test/goldens/`.
 - **Location:** the device's location service while the app is in use, asked for with a
   plain-language explanation. Coordinates are **rounded to 2 decimals (about 1 km)**
   before they are sent, and only the last good result and its coordinates are kept, on
-  the device.
+  the device. On Windows there is no separate question for each app: the app follows
+  the Windows location setting (Settings, Privacy & security, Location). If that is off
+  or blocked, the footer says so in plain words. The iPhone asks with the system's own
+  question and the usage text from the app's settings file.
+- **Retries (built in Phase 4):** after a failed refresh the app retries after 1, 2, 4,
+  then every 8 minutes, so it recovers soon after location or the network comes back.
+  When all is well it refreshes every 15 minutes, and straight away when the app returns
+  to the screen. The saved copy is at `app.catclock\cat_clock\weather_cache.json` under
+  the user's AppData Roaming folder on Windows.
 - **When it refreshes:** at start, when the app comes back to the screen, every 15
   minutes while visible, and right after location permission is granted.
 - **When something is wrong:** the last good result stays on screen. If it is more than

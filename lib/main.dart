@@ -1,20 +1,38 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
-import 'alarm/alarm.dart';
-import 'alarm/alarm_controller.dart';
-import 'app/cat_clock_screen.dart';
-import 'app/sample_weather.dart';
+import 'app/live_screen.dart';
 import 'app/theme.dart';
-import 'weather/weather_rules.dart';
+import 'weather/weather_repository.dart';
+import 'weather/weather_setup.dart';
 
-void main() {
-  runApp(const CatClockApp());
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  final dataDirectory = await getApplicationSupportDirectory();
+  runApp(CatClockApp(weather: createWeatherRepository(dataDirectory)));
+}
+
+Future<void> _openInBrowser(Uri address) async {
+  await launchUrl(address, mode: LaunchMode.externalApplication);
 }
 
 class CatClockApp extends StatelessWidget {
-  const CatClockApp({super.key});
+  const CatClockApp({
+    super.key,
+    required this.weather,
+    this.openLink = _openInBrowser,
+    this.clock = DateTime.now,
+  });
+
+  /// Keeps the weather up to date. Replaced by a fake one in tests.
+  final WeatherRepository weather;
+
+  /// Opens a web address in the person's browser. Replaced in tests.
+  final Future<void> Function(Uri address) openLink;
+
+  /// The device's local time. Replaced in tests.
+  final DateTime Function() clock;
 
   @override
   Widget build(BuildContext context) {
@@ -22,49 +40,7 @@ class CatClockApp extends StatelessWidget {
       title: 'Cat Clock',
       debugShowCheckedModeBanner: false,
       theme: buildAppTheme(),
-      home: const _PreviewScreen(),
-    );
-  }
-}
-
-/// A preview of the screen with the real clock, a made-up weather result, and a made-up
-/// alarm. The live weather and the working alarm are added in later phases.
-class _PreviewScreen extends StatefulWidget {
-  const _PreviewScreen();
-
-  @override
-  State<_PreviewScreen> createState() => _PreviewScreenState();
-}
-
-class _PreviewScreenState extends State<_PreviewScreen> {
-  late DateTime _now = DateTime.now();
-  Timer? _timer;
-
-  @override
-  void initState() {
-    super.initState();
-    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
-      setState(() => _now = DateTime.now());
-    });
-  }
-
-  @override
-  void dispose() {
-    _timer?.cancel();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return CatClockScreen(
-      now: _now,
-      colonOn: _now.second.isEven,
-      weather: sampleWeather(_now),
-      freshness: WeatherFreshness.fresh,
-      alarm: const Alarm(hour: 6, minute: 30, enabled: true),
-      alarmState: AlarmState.armed,
-      showAttribution: false,
-      footerNote: 'Sample weather and alarm, not live yet',
+      home: LiveScreen(weather: weather, openLink: openLink, clock: clock),
     );
   }
 }

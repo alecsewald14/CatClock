@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:cat_clock/alarm/alarm.dart';
 import 'package:cat_clock/alarm/alarm_store.dart';
+import 'package:cat_clock/storage/text_storage.dart';
 
 void main() {
   group('Alarm', () {
@@ -80,46 +81,46 @@ void main() {
 
   group('AlarmStore', () {
     test('loads the default alarm when nothing has been saved', () async {
-      final store = AlarmStore(MemoryAlarmStorage());
+      final store = AlarmStore(MemoryTextStorage());
       expect(await store.load(), const Alarm());
     });
 
     test('loads back what was saved', () async {
-      final storage = MemoryAlarmStorage();
+      final storage = MemoryTextStorage();
       const alarm = Alarm(hour: 6, minute: 45, enabled: true, repeatDaily: true);
       await AlarmStore(storage).save(alarm);
       expect(await AlarmStore(storage).load(), alarm);
     });
 
     test('writes a version number so the file format can change later', () async {
-      final storage = MemoryAlarmStorage();
+      final storage = MemoryTextStorage();
       await AlarmStore(storage).save(const Alarm());
       final decoded = jsonDecode(storage.contents!) as Map<String, dynamic>;
       expect(decoded['version'], 1);
     });
 
     test('falls back to the default alarm when the file is not valid JSON', () async {
-      final storage = MemoryAlarmStorage('this is not json {{{');
+      final storage = MemoryTextStorage('this is not json {{{');
       final store = AlarmStore(storage);
       expect(await store.load(), const Alarm());
       expect(store.lastLoadProblem, isNotNull);
     });
 
     test('falls back to the default alarm when the JSON is not an object', () async {
-      final store = AlarmStore(MemoryAlarmStorage('[1, 2, 3]'));
+      final store = AlarmStore(MemoryTextStorage('[1, 2, 3]'));
       expect(await store.load(), const Alarm());
       expect(store.lastLoadProblem, isNotNull);
     });
 
     test('falls back to the default alarm when a value is out of range', () async {
       final json = jsonEncode({...const Alarm().toJson(), 'hour': 99, 'version': 1});
-      final store = AlarmStore(MemoryAlarmStorage(json));
+      final store = AlarmStore(MemoryTextStorage(json));
       expect(await store.load(), const Alarm());
       expect(store.lastLoadProblem, isNotNull);
     });
 
     test('reports no problem after a clean load', () async {
-      final storage = MemoryAlarmStorage();
+      final storage = MemoryTextStorage();
       final store = AlarmStore(storage);
       await store.save(const Alarm(hour: 9));
       await store.load();
