@@ -52,6 +52,37 @@ the setup pages and the "also delete your saved alarm and settings?" question ha
 been seen. The installed app was deliberately not launched during the test. The installer
 is unsigned, so Windows shows a SmartScreen warning.
 
+## Phase 7 (iPhone app): built, not yet seen on a phone, 2026-11-13
+
+Checked by me on this laptop and on a cloud Mac (GitHub Actions, run
+`43375158742`, commit `d331c8c`):
+
+| Check | Result |
+|---|---|
+| Static analysis | Passed, no issues |
+| All automated tests | Passed (489), including the iPhone alarm service with a fake AlarmKit, the days-left messages, the PNG writer and iPhone icon files, and a check that the Dart and Swift channel names, methods, and settings agree |
+| The Swift code compiles, the app builds without signing, and an `.ipa` is produced | Passed on the first cloud build (12.5 MB) |
+| The built app's Info.plist: name "Cat Clock", minimum iOS 26.0, alarm and location permission texts, Live Activities flag | Passed (read from the cloud build) |
+| All 30 sound files (6 sounds x 5 levels) are placed at the top of the app, where the alarm service looks for them | Passed (the check fails the build if the count is not 30) |
+| The iPhone icons are 15 files of the sizes the project asks for, with no transparency | Passed (automated) |
+
+**Not done, so UNKNOWN:** nothing below has been seen on a phone. The product owner chose
+not to run a device test for now.
+
+- Whether the app opens and looks right on the iPhone 14 Plus.
+- The alarm permission question, and the message shown when it is refused.
+- Ringing with the phone locked, with the app closed, with Silent, and with a Focus mode,
+  using the app's own alarm (only the Phase 1 test app was seen doing this).
+- Snooze for 9 minutes, and the five volume steps sounding clearly different.
+- Daily repeat across a night.
+- The days-left line showing 6 days after install, and going back after a renewal.
+- Weather from the phone's location.
+- What a pending alarm does when the signature lapses (spec check 8, planned for week 2).
+- That AltStore accepts the file and installs it, and that the 3-app limit leaves room.
+
+How to install and try each of these: [install-iphone.md](install-iphone.md) and
+[weekly-renewal.md](weekly-renewal.md).
+
 ## Still to come
 
-Phase 7 (iPhone app) and Phase 8 (final checks). This file is extended at each gate.
+Phase 8 (final checks and handover). This file is extended at each gate.
