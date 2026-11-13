@@ -5,6 +5,7 @@ import 'package:cat_clock/alarm/alarm_controller.dart';
 import 'package:cat_clock/app/alarm_bar.dart';
 import 'package:cat_clock/app/cat_clock_screen.dart';
 import 'package:cat_clock/app/sample_weather.dart';
+import 'package:cat_clock/platform/signature_info.dart';
 import 'package:cat_clock/weather/weather_models.dart';
 import 'package:cat_clock/weather/weather_rules.dart';
 
@@ -31,6 +32,7 @@ CatClockScreen screen({
   VoidCallback? onAttributionTap,
   bool showAttribution = true,
   String? note,
+  SignatureMessage? signature,
 }) {
   return CatClockScreen(
     now: now,
@@ -45,6 +47,7 @@ CatClockScreen screen({
     animateCat: false,
     showAttribution: showAttribution,
     footerNote: note,
+    signature: signature,
     onAlarmTap: onAlarmTap,
     onStop: onStop,
     onSnooze: onSnooze,
@@ -152,6 +155,56 @@ void main() {
         final rect = rectOf(tester, key);
         expect(window.inflate(0.5).contains(rect.topLeft), isTrue, reason: key);
         expect(window.inflate(0.5).contains(rect.bottomRight), isTrue, reason: key);
+      }
+    });
+  });
+
+  group('the iPhone signature line', () {
+    const calm = SignatureMessage('Signature: 6 days left', warning: false);
+    const warning = SignatureMessage('Signature: 1 day left. Renew it with AltStore soon.', warning: true);
+
+    testWidgets('is not shown where there is no signature, as on Windows', (tester) async {
+      await pumpAtSize(tester, phonePortrait, screen());
+      expect(find.byKey(const Key('signature')), findsNothing);
+    });
+
+    testWidgets('shows the days left in the footer, in the quiet small-print style', (tester) async {
+      await pumpAtSize(tester, phonePortrait, screen(signature: calm));
+      final text = tester.widget<Text>(find.byKey(const Key('signature')));
+      expect(text.data, 'Signature: 6 days left');
+      expect(text.style!.fontWeight, FontWeight.w400);
+      expect(find.descendant(of: find.byKey(const Key('footer')), matching: find.byKey(const Key('signature'))), findsOneWidget);
+    });
+
+    testWidgets('a warning is bold and in a warm red, so it stands out from the small print', (tester) async {
+      await pumpAtSize(tester, phonePortrait, screen(signature: warning));
+      final style = tester.widget<Text>(find.byKey(const Key('signature'))).style!;
+      expect(style.fontWeight, FontWeight.w700);
+      expect(style.color, const Color(0xFFFF8A80));
+    });
+
+    sizes.forEach((name, size) {
+      for (final scale in [1.0, 2.0]) {
+        testWidgets('$name, text x$scale: the footer with everything in it still fits on the screen', (tester) async {
+          await pumpAtSize(
+            tester,
+            size,
+            screen(
+              freshness: WeatherFreshness.stale,
+              note: 'Alarms are turned off for Cat Clock. Turn them on in the iPhone\'s Settings.',
+              signature: warning,
+            ),
+            textScale: scale,
+          );
+          final window = Offset.zero & size;
+          for (final key in ['alarm-bar', 'footer', 'signature']) {
+            final rect = rectOf(tester, key);
+            expect(window.inflate(0.5).contains(rect.topLeft), isTrue, reason: '$key top left $rect');
+            expect(window.inflate(0.5).contains(rect.bottomRight), isTrue, reason: '$key bottom right $rect');
+          }
+          expect(rectOf(tester, 'alarm-bar').bottom, lessThanOrEqualTo(rectOf(tester, 'footer').top + 0.5));
+          expect(tester.takeException(), isNull);
+        });
       }
     });
   });

@@ -2,10 +2,11 @@
 
 ## Install
 
-1. Run `CatClock-Setup-1.0.0.exe`. After a build it is here:
+1. Run `CatClock-Setup-1.0.0.exe`. After a build it is in the project folder
+   (`Documents\CatClock`), here:
 
    ```
-   C:\Users\alecs\Documents\CatClock\build\installer\CatClock-Setup-1.0.0.exe
+   build\installer\CatClock-Setup-1.0.0.exe
    ```
 
 2. **Windows will probably show a blue "Windows protected your PC" box.** That is because

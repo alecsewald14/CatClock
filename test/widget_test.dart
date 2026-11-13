@@ -6,6 +6,9 @@ import 'package:cat_clock/alarm/alarm_service.dart';
 import 'package:cat_clock/alarm/alarm_store.dart';
 import 'package:cat_clock/app/app_settings.dart';
 import 'package:cat_clock/main.dart';
+import 'package:cat_clock/platform/ios/alarmkit_api.dart';
+import 'package:cat_clock/platform/ios/ios_alarm_service.dart';
+import 'package:cat_clock/platform/signature_info.dart';
 import 'package:cat_clock/storage/text_storage.dart';
 import 'package:cat_clock/weather/location_service.dart';
 import 'package:cat_clock/weather/units.dart';
@@ -14,6 +17,7 @@ import 'package:cat_clock/weather/weather_problem.dart';
 import 'package:cat_clock/weather/weather_repository.dart';
 
 import 'helpers/alarm_fakes.dart';
+import 'helpers/alarmkit_fakes.dart';
 import 'helpers/app_fakes.dart';
 import 'helpers/pump.dart';
 import 'helpers/weather_fakes.dart';
@@ -642,6 +646,170 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Quit Cat Clock?'), findsNothing);
       expect(rig.shell.quitCount, 1);
+      await leave(tester);
+    });
+  });
+
+  group('on the iPhone', () {
+    Future<(Rig, IosAlarmService, FakeAlarmKit)> phone({
+      Alarm? saved,
+      List<SystemAlarmState> held = const [],
+      FakeAlarmKit? kit,
+    }) async {
+      final rig = await Rig.create();
+      final api = kit ?? FakeAlarmKit(permissionState: AlarmPermission.authorized);
+      api.held = List.of(held);
+      final storage = MemoryTextStorage();
+      if (saved != null) await AlarmStore(storage).save(saved);
+      final service = await IosAlarmService.load(api: api, store: AlarmStore(storage), player: FakeSoundPlayer());
+      return (rig, service, api);
+    }
+
+    Future<void> showPhone(
+      WidgetTester tester,
+      Rig rig,
+      IosAlarmService service, {
+      SignatureInfo? signature,
+      String? note,
+    }) async {
+      tester.view.physicalSize = const Size(780, 1688);
+      tester.view.devicePixelRatio = 2;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(CatClockApp(
+        weather: rig.repo,
+        alarm: service,
+        settingsStore: AppSettingsStore(rig.settingsStorage),
+        settings: const AppSettings(),
+        signatureInfo: signature,
+        alarmNote: note,
+        clock: () => fixedNow,
+      ));
+      await tester.pump();
+      await tester.pump();
+    }
+
+    /// The person leaves the app and comes back to it.
+    Future<void> backToFront(WidgetTester tester) async {
+      for (final state in [
+        AppLifecycleState.inactive,
+        AppLifecycleState.hidden,
+        AppLifecycleState.paused,
+        AppLifecycleState.hidden,
+        AppLifecycleState.inactive,
+        AppLifecycleState.resumed,
+      ]) {
+        tester.binding.handleAppLifecycleStateChanged(state);
+      }
+      await tester.pump();
+      await tester.pump();
+    }
+
+    String signatureText(WidgetTester tester) => tester.widget<Text>(find.byKey(const Key('signature'))).data!;
+
+    DateTime inFuture(Duration time) => fixedNow.toUtc().add(time);
+
+    testWidgets('shows how many days are left, counted down', (tester) async {
+      final (rig, service, _) = await phone();
+      await showPhone(tester, rig, service, signature: FakeSignatureInfo(inFuture(const Duration(days: 6, hours: 2))));
+      expect(signatureText(tester), 'Signature: 6 days left');
+      expect(tester.widget<Text>(find.byKey(const Key('signature'))).style!.fontWeight, FontWeight.w400);
+      await leave(tester);
+    });
+
+    testWidgets('a signature close to ending shows a bold warning', (tester) async {
+      final (rig, service, _) = await phone();
+      await showPhone(tester, rig, service, signature: FakeSignatureInfo(inFuture(const Duration(days: 1, hours: 3))));
+      expect(signatureText(tester), startsWith('Signature: 1 day left'));
+      expect(tester.widget<Text>(find.byKey(const Key('signature'))).style!.fontWeight, FontWeight.w700);
+      await leave(tester);
+    });
+
+    testWidgets('an ended signature says so', (tester) async {
+      final (rig, service, _) = await phone();
+      await showPhone(tester, rig, service, signature: FakeSignatureInfo(inFuture(const Duration(hours: -1))));
+      expect(signatureText(tester), startsWith('Signature expired'));
+      await leave(tester);
+    });
+
+    testWidgets('shows no line when the expiry cannot be read', (tester) async {
+      final (rig, service, _) = await phone();
+      await showPhone(tester, rig, service, signature: FakeSignatureInfo(null));
+      expect(find.byKey(const Key('signature')), findsNothing);
+      await leave(tester);
+    });
+
+    testWidgets('shows no line on Windows, where nothing is passed in', (tester) async {
+      final rig = await Rig.create();
+      await showApp(tester, rig);
+      expect(find.byKey(const Key('signature')), findsNothing);
+      await leave(tester);
+    });
+
+    testWidgets('asks again on coming back to the app, in case AltStore renewed it meanwhile', (tester) async {
+      final (rig, service, _) = await phone();
+      final info = FakeSignatureInfo(inFuture(const Duration(days: 1, hours: 3)));
+      await showPhone(tester, rig, service, signature: info);
+      expect(signatureText(tester), startsWith('Signature: 1 day left'));
+
+      info.expires = inFuture(const Duration(days: 6, hours: 2));
+      await backToFront(tester);
+      expect(info.asked, 2);
+      expect(signatureText(tester), 'Signature: 6 days left');
+      await leave(tester);
+    });
+
+    testWidgets('a failed read on coming back keeps the days already known', (tester) async {
+      final (rig, service, _) = await phone();
+      final info = FakeSignatureInfo(inFuture(const Duration(days: 4, hours: 1)));
+      await showPhone(tester, rig, service, signature: info);
+      info.expires = null;
+      await backToFront(tester);
+      expect(info.asked, 2);
+      expect(signatureText(tester), 'Signature: 4 days left');
+      await leave(tester);
+    });
+
+    testWidgets('coming back switches off a one-time alarm that rang while the app was closed', (tester) async {
+      final (rig, service, kit) = await phone(saved: ringingAlarm, held: [SystemAlarmState.scheduled]);
+      await showPhone(tester, rig, service);
+      expect(service.alarm.enabled, isTrue);
+
+      kit.held = []; // it rang and finished while the app was away
+      await backToFront(tester);
+      expect(service.alarm.enabled, isFalse);
+      expect(find.text('OFF'), findsOneWidget);
+      await leave(tester);
+    });
+
+    testWidgets('the alarm settings carry the iPhone note and not the Windows one', (tester) async {
+      final (rig, service, _) = await phone();
+      await showPhone(tester, rig, service, note: iosAlarmNote);
+      await tester.tap(find.byKey(const Key('alarm-bar')));
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.byKey(const Key('platform-note')));
+      expect(tester.widget<Text>(find.byKey(const Key('platform-note'))).data, contains('backup alarm in the Clock app'));
+      expect(find.byKey(const Key('windows-note')), findsNothing);
+      expect(find.byKey(const Key('switch-startup')), findsNothing);
+      await leave(tester);
+    });
+
+    testWidgets('the iPhone note does not claim more than has been seen', (tester) async {
+      expect(iosAlarmNote, contains('Silent or a Focus mode'));
+      expect(iosAlarmNote, contains('7 days'));
+      expect(iosAlarmNote, contains('AltStore'));
+      expect(iosAlarmNote, isNot(contains('still sets how loud')));
+    });
+
+    testWidgets('turning the alarm on without permission says why at the bottom of the screen', (tester) async {
+      final kit = FakeAlarmKit(userAllows: false);
+      final (rig, service, _) = await phone(saved: ringingAlarm.copyWith(enabled: false), kit: kit);
+      await showPhone(tester, rig, service);
+      service.setEnabled(true);
+      await tester.pump();
+      await tester.pump();
+      await tester.pump();
+      expect(tester.widget<Text>(find.byKey(const Key('note'))).data, contains('Settings'));
+      expect(service.alarm.enabled, isFalse);
       await leave(tester);
     });
   });

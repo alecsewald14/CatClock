@@ -3,10 +3,11 @@
 This is the Phase 5 test build. It is not installed; you run it straight from its folder.
 Phase 6 adds the installer and the final cat icon (the tray icon is already the cat).
 
-**To start it:** open this folder in File Explorer and double-click `cat_clock.exe`:
+**To start it:** open this folder, inside the project folder (`Documents\CatClock`), in
+File Explorer and double-click `cat_clock.exe`:
 
 ```
-C:\Users\alecs\Documents\CatClock\build\windows\x64\runner\Release
+build\windows\x64\runner\Release
 ```
 
 Keep the other files in that folder next to it. Nothing is written outside your own user

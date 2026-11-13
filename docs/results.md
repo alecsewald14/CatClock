@@ -83,6 +83,97 @@ not to run a device test for now.
 How to install and try each of these: [install-iphone.md](install-iphone.md) and
 [weekly-renewal.md](weekly-renewal.md).
 
-## Still to come
+## Phase 8 (final check): automated part done, 2026-11-13
 
-Phase 8 (final checks and handover). This file is extended at each gate.
+Run by me on this laptop, on the final code:
+
+| Check | Result |
+|---|---|
+| Static analysis | Passed, no issues |
+| All automated tests | Passed: **509** (20 added in this phase, see below) |
+| `flutter build windows --release` | Passed |
+| The new Windows build starts, is responding, and its window is titled "Cat Clock" | Passed (started for 8 seconds, then closed by me) |
+| Cloud iPhone build | Passed (Phase 7 run `43375158742`, built from the same app code; later changes in this phase touch `lib/` and were **not** built in the cloud, see below) |
+| A scan of every tracked file for passwords, keys, tokens, and keystores | Nothing found. Only prose that mentions passwords |
+| Personal details | The owner's Windows user name appeared in two docs as a file path. Removed. It is still in earlier commits, including the already-pushed `phase-7/iphone` branch. The owner's GitHub name appears in the install guide's link, which is their own public repository |
+| Commit author on every commit | `Cat Clock Builder`, with no real email address |
+
+**Found by this check, and fixed:** nothing tested the iPhone's days-left line on the
+screen, the iPhone note in the alarm settings, or what the app does when it comes back to
+the front. 20 tests were added for them, including that the longest footer (credit,
+"updated" text, an alarm message, and a signature warning) fits at phone portrait, phone
+landscape, and laptop size at normal and double text size. Three deliberate breaks proved
+the tests catch real faults: no re-read of the signature on return, no alarm check on
+return, and a warning that is not bold. (My first attempt at the first break did not apply
+and wrongly showed "still passes"; I redid it and checked it applied.)
+
+**Also changed:** the signature date is now read again whenever the app comes back to the
+front, because AltStore may renew it in the background, and a failed read keeps the days
+already known. One sentence in the iPhone alarm note claimed the phone's volume decides how
+loud the alarm is. That has never been tested, so it now says the phone's volume "may"
+change it.
+
+**Not built in the cloud yet:** those two changes to `lib/` came after the cloud build, so
+the build that you would download is one commit behind. They are Dart-only changes covered
+by the 509 tests, and the cloud build was clean, but a new cloud build is the proof. It
+runs when `phase-7/iphone` or `main` is pushed.
+
+### Plan section 4, "must pass", against what exists
+
+The plan named some test files that ended up with different names. This table uses the
+real ones.
+
+| Area (plan section 4) | Tests | Result |
+|---|---|---|
+| 12-hour time | `time_format_test` | Passed |
+| Next ring time, including both clock changes | `next_fire_time_test` | Passed |
+| Alarm states | `alarm_controller_test`, `alarm_service_test` | Passed |
+| Weather codes | `weather_codes_test`, `weather_icons_test` | Passed |
+| Weather data, units, staleness (30 minutes, 3 hours), rounding | `open_meteo_client_test`, `open_meteo_fetch_test`, `units_test`, `weather_rules_test`, `weather_repository_test`, `weather_cache_test` | Passed |
+| Digits, AM/PM, contrast of at least 4.5 to 1 | `digits_test` (pictures in `test/goldens`) | Passed (7.52 to 1) |
+| Layout at 390 x 844, 844 x 390, 1280 x 800, and minimum text and icon sizes | `screen_test`, `belly_panel_test` | Passed |
+| Cat: belly panel fixed across 24 frames, still pose with reduce motion | `cat_test`, `walk_cycle_test` | Passed |
+| Sounds: 6 x 5 exist, at most 6 MB, each level louder | `sound_catalog_test` | Passed (5.76 MB) |
+| Icon sizes | `icon_test`, `ico_test` | Passed |
+| Windows alarm with a fake clock | `alarm_service_test`, `widget_test` | Passed |
+| Windows start-up entry, installer script | `registry_startup_entry_test`, `installer_script_test` | Passed |
+| iPhone alarm service, signature message, icons, project settings | `ios_alarm_service_test`, `signature_test`, `ios_icon_test`, `ios_project_test`, and the iPhone group in `widget_test` | Passed |
+| Whole project: analysis clean, Windows build, cloud iPhone build | see the table above | Passed |
+
+### Gate G3 (acceptance): **not yet decided**
+
+"Done for version 1" in `spec.md` section 6 needs the Windows checks to pass and iPhone
+checks 1 to 6 to pass on a phone, with check 7 working and check 8 recorded. The state of
+each:
+
+| Device check | State |
+|---|---|
+| Windows 1 to 4 (rings while minimized, rings after Close, Quit stops it, sleep stops it) | Rings with the window open and while hidden in the tray were **reported as passing**. Quit and sleep behavior were not individually reported |
+| iPhone 1 Install through AltStore | **Not done** |
+| iPhone 2 to 4 (rings locked and closed, with Silent, with Focus) | **Not done on this app.** Seen working only in the Phase 1 test app |
+| iPhone 5 Snooze of 9 minutes | **Not done** (a 1-minute snooze worked in the Phase 1 test app) |
+| iPhone 6 Five volume steps audibly different | **Not done** |
+| iPhone 7 Renewal resets the days-left line | **Not done** |
+| iPhone 8 What a lapsed signature does to a pending alarm | **Not done.** Planned for week 2 |
+
+So version 1 is **built and passes every automated check, but is not accepted**: the
+iPhone app has not been seen running, and the owner chose not to run the phone checks for
+now. If the owner accepts it as it is, that acceptance should say so in these words, and
+the unknowns above stay unknowns.
+
+**Gate record**
+
+- [ ] Accept version 1 now, with the unknowns above left open
+- [ ] Hold acceptance until the iPhone checks 1 to 6 (and 7) have been run on the phone
+- **Decision:** (to be filled in by the product owner)  **Date:**
+
+### Known limits, unchanged
+
+- The Windows installer is unsigned, so Windows shows a SmartScreen warning.
+- Windows must be awake with the app running for the alarm to ring; sleep-waking was left
+  out on purpose.
+- The Windows installer's setup pages and "Start with Windows" at a real sign-in have not
+  been seen by a person.
+- The iPhone alarm screen when ringing is Apple's own, not the cat.
+- The iPhone signature lasts 7 days; a missed renewal stops the app opening.
+- The cloud build and AltStore depend on third parties (GitHub, Apple, AltStore).

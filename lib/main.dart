@@ -31,9 +31,10 @@ import 'weather/weather_setup.dart';
 /// Said at the bottom of the alarm settings on the iPhone.
 const String iosAlarmNote =
     'The alarm is set with the iPhone itself, so it rings even when the app is closed, the '
-    'phone is locked, or Silent or a Focus mode is on. The phone\'s volume still sets how '
-    'loud it is. An app installed this way works for 7 days, so renew it with AltStore '
-    'before then, and keep a backup alarm in the Clock app for important mornings.';
+    'phone is locked, or Silent or a Focus mode is on. The volume steps above choose how '
+    'loud the sound itself is, and the phone\'s own volume may change it too. An app '
+    'installed this way works for 7 days, so renew it with AltStore before then, and keep '
+    'a backup alarm in the Clock app for important mornings.';
 
 Future<void> main(List<String> arguments) async {
   WidgetsFlutterBinding.ensureInitialized();

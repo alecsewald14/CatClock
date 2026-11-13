@@ -88,15 +88,23 @@ class _LiveScreenState extends State<LiveScreen> with WidgetsBindingObserver {
       onQuitRequested: _onQuitRequested,
       startHidden: widget.startHidden,
     ));
-    final info = widget.signatureInfo;
-    if (info != null) {
-      unawaited(info.expiresAt().then((expires) {
-        if (mounted) setState(() => _signatureExpires = expires);
-      }));
-    }
+    _readSignature();
     _tick = Timer.periodic(const Duration(seconds: 1), (_) {
       setState(() => _now = widget.clock());
     });
+  }
+
+  /// Asks when the signature expires. Asked again on return to the app, because AltStore may
+  /// have renewed it while the app was in the background.
+  void _readSignature() {
+    final info = widget.signatureInfo;
+    if (info == null) return;
+    unawaited(info.expiresAt().then((expires) {
+      // A failed read later on must not erase an expiry that was already known.
+      if (mounted && (expires != null || _signatureExpires == null)) {
+        setState(() => _signatureExpires = expires);
+      }
+    }));
   }
 
   @override
@@ -104,6 +112,7 @@ class _LiveScreenState extends State<LiveScreen> with WidgetsBindingObserver {
     switch (state) {
       case AppLifecycleState.resumed:
         unawaited(widget.weather.resume());
+        _readSignature();
         // On the iPhone the alarm may have rung while the app was closed.
         final alarm = widget.alarm;
         if (alarm is IosAlarmService) unawaited(alarm.reconcile());
