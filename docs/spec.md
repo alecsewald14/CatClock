@@ -77,20 +77,26 @@ backup alarm in the iPhone Clock app.
 
 ```
 +--------------------------------------------------------------+
-|   ground line scrolls to the left as the cat walks right ->  |
-|          /\_/\                                               |
-|     ----( o.o )----- belly display (fixed, does not bob) --  |
+|              /\_/\    head turns a little as it walks   ~ tail
+|             ( o.o )                                          |
+|     ---- belly display (fixed, does not move) -------------  |
 |    |  7:42 PM        |  NOW  [sun] 54F                    |  |
 |    |  blue digits    |  8PM [cloud] 54   9PM [cloud] 53   |  |
 |    |                 | 10PM [rain]  51  11PM [rain]  50   |  |
 |    |                 | 12AM [rain]  49   1AM [cloud] 48   |  |
 |     -----------------------------------------------------   |
-|        legs and tail animate                                 |
+|           (feet step one after the other)                    |
 +--------------------------------------------------------------+
 |  Alarm 6:30 AM  [ ON ]   Sound: Soft Chime   Volume: ---o-   |
 |  Weather data by Open-Meteo.com     (iPhone: Signature: 5 d) |
 +--------------------------------------------------------------+
 ```
+
+**Revised during Build (2026-11-12):** the cat faces the viewer instead of being seen from
+the side. A side view with a head and tail would be wider than the screen on a phone, so
+the belly display would have to shrink below the readable sizes below. A front-facing cat
+fits the display at nearly the full phone width. The real screen is shown in the saved
+images under `test/goldens/`.
 
 - The **belly display** is one fixed-shape panel drawn at a design size of 960 x 420
   units and scaled to fit, so "weather to the right of the time" holds on a wide
@@ -100,7 +106,9 @@ backup alarm in the iPhone Clock app.
   (hour label, icon, temperature) for the next six hours.
 - Minimum sizes on a 390-point-wide iPhone in portrait: time digits at least 70 points
   tall; weather icons at least 20 points; hour labels and temperatures at least 11
-  points. Landscape gives larger sizes.
+  points. Measured in the saved test images: digits 71.7 points, smallest weather text
+  11.7 points. In phone landscape the cat is limited by the screen height, so these
+  come out smaller (about 63-point digits); portrait is the larger layout.
 - Tapping the alarm bar opens the **alarm sheet**: time picker (12-hour with AM/PM),
   on/off, a **Repeat every day** switch, sound list with a 3-second preview on tap,
   volume slider (5 steps). On Windows only, the sheet also has a **Start with Windows**
@@ -111,10 +119,11 @@ backup alarm in the iPhone Clock app.
 
 ### 3.3 The cat
 
-- Friendly cartoon cat, side view, facing right, walking in place.
-- **Walk cycle:** 1 second per step cycle. Diagonal leg pairs swing in opposite phase,
-  the tail sways, the head bobs slightly, and the cat blinks every 3 to 5 seconds. The
-  ground line scrolls to the left at walking speed so it reads as walking.
+- Friendly cartoon cat, front view, stepping in place (see the revision note in 3.2).
+- **Walk cycle:** 1 second per step cycle, 24 pictures a second. The two feet lift one
+  after the other, the body rises a little at each step, the head tilts side to side,
+  the tail sways, and the cat blinks every 3 to 5 seconds (the gaps in a repeating
+  16-second loop are 4.5, 3.1, 3.6, and 4.8 seconds).
 - **The belly display never moves.** The body shape is drawn behind it and may bob by
   at most 2% of its height, but the panel is drawn in screen space on top, so the digits
   stay perfectly still and readable.
